@@ -12,7 +12,8 @@ const API = 'https://api.themoviedb.org/3';
     const availabilityFilter = document.querySelector('#availability-filter');
     const sortOrder = document.querySelector('#sort-order');
     let currentMovies = [];
-    keyInput.value = localStorage.getItem('cinear_tmdb_token') || window.CINEAR_TMDB_TOKEN || '';
+    const configuredToken = window.CINEAR_TMDB_TOKEN?.trim() || '';
+    keyInput.value = configuredToken || localStorage.getItem('cinear_tmdb_token') || '';
     document.querySelector('#save-key').addEventListener('click', () => {
       const token = keyInput.value.trim();
       if (token) localStorage.setItem('cinear_tmdb_token', token);
@@ -83,7 +84,7 @@ const API = 'https://api.themoviedb.org/3';
     sortOrder.addEventListener('change', updateResults);
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      const token = localStorage.getItem('cinear_tmdb_token') || window.CINEAR_TMDB_TOKEN;
+      const token = configuredToken || localStorage.getItem('cinear_tmdb_token');
       if (!token) { settings.open = true; status.textContent = 'Agregá tu token gratuito de TMDb para empezar a buscar.'; keyInput.focus(); return; }
       const query = queryInput.value.trim();
       if (!query) return;
