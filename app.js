@@ -12,6 +12,14 @@ const API = 'https://api.themoviedb.org/3';
     const availabilityFilter = document.querySelector('#availability-filter');
     const sortOrder = document.querySelector('#sort-order');
     let currentMovies = [];
+    const diaryDialog = document.querySelector('#diary-dialog');
+    const diaryForm = document.querySelector('#diary-form');
+    const diaryList = document.querySelector('#diary-list');
+    const diaryEmpty = document.querySelector('#diary-empty');
+    const diaryCount = document.querySelector('#diary-count');
+    const diaryStats = document.querySelector('#diary-stats');
+    let diaryItem = null;
+    let diaryEntries = readDiary();
     const configuredToken = window.CINEAR_TMDB_TOKEN?.trim() || '';
     keyInput.value = configuredToken || localStorage.getItem('cinear_tmdb_token') || '';
     document.querySelector('#save-key').addEventListener('click', () => {
@@ -49,6 +57,78 @@ const API = 'https://api.themoviedb.org/3';
       return groupsMarkup || '<span class="empty-providers">Sin disponibilidad informada en Argentina.</span>';
     }
     function escapeHTML(value='') { return value.replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+    function readDiary() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('cinear_diary') || '[]');
+        return Array.isArray(saved) ? saved : [];
+      } catch { return []; }
+    }
+    function diaryKey(item) { return `${item.mediaType}:${item.id}`; }
+    function saveDiary() {
+      localStorage.setItem('cinear_diary', JSON.stringify(diaryEntries));
+      renderDiary();
+    }
+    function formatRatingDate(value) {
+      if (!value) return 'Fecha no disponible';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 'Fecha no disponible' : date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    function renderDiaryStats() {
+      diaryStats.hidden = diaryEntries.length === 0;
+      if (!diaryEntries.length) { diaryStats.replaceChildren(); return; }
+      const average = diaryEntries.reduce((sum, entry) => sum + (Number(entry.rating) || 0), 0) / diaryEntries.length;
+      const topRating = Math.max(...diaryEntries.map(entry => Number(entry.rating) || 0));
+      const topEntries = diaryEntries.filter(entry => Number(entry.rating) === topRating);
+      const bestNames = topEntries.slice(0, 3).map(entry => escapeHTML(entry.title)).join(', ');
+      const tags = diaryEntries.flatMap(entry => entry.tags || []).reduce((counts, tag) => {
+        counts[tag] = (counts[tag] || 0) + 1;
+        return counts;
+      }, {});
+      const topTags = Object.entries(tags).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es')).slice(0, 5);
+      const maxTagCount = topTags[0]?.[1] || 1;
+      const recent = [...diaryEntries].filter(entry => entry.ratedAt).sort((a, b) => b.ratedAt.localeCompare(a.ratedAt))[0];
+      diaryStats.innerHTML = `<article class="stat-card stat-total"><span class="stat-label">Vistas</span><strong>${diaryEntries.length}</strong><span class="stat-note">películas y series</span></article>
+        <article class="stat-card"><span class="stat-label">Promedio</span><strong>${average.toFixed(1)}<span class="stat-unit"> / 5</span></strong><span class="stat-note">tu calificación media</span></article>
+        <article class="stat-card stat-best"><span class="stat-label">Mejor puntuadas · ${topRating}/5</span><strong>${bestNames}</strong><span class="stat-note">${topEntries.length > 3 ? `y ${topEntries.length - 3} más` : `${topEntries.length === 1 ? 'Tu favorita por nota' : 'Empate en el primer puesto'}`}</span></article>
+        <article class="stat-card"><span class="stat-label">Última calificación</span><strong>${recent ? formatRatingDate(recent.ratedAt) : '—'}</strong><span class="stat-note">${recent ? escapeHTML(recent.title) : 'Todavía sin fechas registradas'}</span></article>
+        <article class="stat-card stat-tags"><span class="stat-label">Emociones y etiquetas</span>${topTags.length ? `<div class="tag-stats">${topTags.map(([tag, count]) => `<div class="tag-stat"><span>${escapeHTML(tag)}</span><span class="tag-stat-track"><i style="--tag-fill:${Math.round(count / maxTagCount * 100)}%"></i></span><b>${count}</b></div>`).join('')}</div>` : '<span class="stat-note">Agregá etiquetas al puntuar para ver tus tendencias.</span>'}</article>`;
+    }
+    function renderDiary() {
+      diaryCount.textContent = `${diaryEntries.length} ${diaryEntries.length === 1 ? 'título' : 'títulos'}`;
+      diaryEmpty.hidden = diaryEntries.length > 0;
+      renderDiaryStats();
+      diaryList.innerHTML = [...diaryEntries].reverse().map(entry => {
+        const title = escapeHTML(entry.title);
+        const tags = (entry.tags || []).map(tag => `<span class="diary-tag">${escapeHTML(tag)}</span>`).join('');
+        const poster = entry.poster ? `<img class="diary-poster" src="${escapeHTML(entry.poster)}" alt="" loading="lazy">` : '<div class="diary-poster" aria-hidden="true"></div>';
+        const stars = '★'.repeat(Number(entry.rating) || 0) + '☆'.repeat(5 - (Number(entry.rating) || 0));
+        return `<article class="diary-entry">${poster}<div><h3>${title}</h3><div class="diary-meta">${entry.mediaType === 'tv' ? 'Serie' : 'Película'} · ${escapeHTML(entry.year || 'Año desconocido')} <span class="diary-rating" aria-label="${entry.rating} de 5 estrellas">${stars}</span></div><div class="diary-rated-at">Calificada el ${formatRatingDate(entry.ratedAt)}</div>${tags ? `<div class="diary-tags">${tags}</div>` : ''}</div><div class="diary-actions"><button class="diary-action" type="button" data-diary-edit="${escapeHTML(diaryKey(entry))}">Editar</button><button class="diary-action" type="button" data-diary-delete="${escapeHTML(diaryKey(entry))}" aria-label="Eliminar ${title}">Eliminar</button></div></article>`;
+      }).join('');
+    }
+    function openDiary(item) {
+      diaryItem = item;
+      const key = diaryKey(item);
+      const existing = diaryEntries.find(entry => diaryKey(entry) === key);
+      const title = item.title || item.name || 'Título sin nombre';
+      document.querySelector('#diary-form-title').textContent = existing ? 'Editar registro' : 'La vi';
+      document.querySelector('#diary-item-name').textContent = title;
+      diaryForm.querySelectorAll('[name="rating"]').forEach(radio => { radio.checked = String(existing?.rating || '') === radio.value; });
+      diaryForm.querySelectorAll('[name="tag"]').forEach(box => { box.checked = Boolean(existing?.tags?.includes(box.value)); });
+      diaryDialog.showModal();
+    }
+    function storedDiaryEntry(item, rating, tags) {
+      const date = item.release_date || item.first_air_date;
+      return {
+        id: item.id,
+        mediaType: item.mediaType,
+        title: item.title || item.name || 'Título sin nombre',
+        year: date ? date.slice(0, 4) : 'Año desconocido',
+        poster: item.poster_path ? `https://image.tmdb.org/t/p/w185${item.poster_path}` : (item.poster || ''),
+        rating,
+        tags,
+        ratedAt: new Date().toISOString()
+      };
+    }
     async function loadMovie(movie, token, type) {
       let region = {};
       try { region = getRegion(await tmdb(`/${movie.mediaType || type}/${movie.id}/watch/providers`, token)); }
@@ -64,7 +144,8 @@ const API = 'https://api.themoviedb.org/3';
       const date = movie.release_date || movie.first_air_date;
       const year = date ? date.slice(0,4) : 'Año desconocido';
       const mediaLabel = movie.mediaType === 'tv' ? 'Serie' : 'Película';
-      return `<article class="movie"><img class="poster" src="${poster}" alt="Póster de ${title}" loading="lazy"><div class="movie-info"><h2>${title}</h2><div class="year">${mediaLabel} · ${year}</div><p class="overview">${escapeHTML(movie.overview || 'Todavía no hay sinopsis disponible.')}</p><div class="providers-label">Dónde verla</div><div class="providers">${providersMarkup}</div></div></article>`;
+      const isWatched = diaryEntries.some(entry => diaryKey(entry) === diaryKey(movie));
+      return `<article class="movie"><img class="poster" src="${poster}" alt="Póster de ${title}" loading="lazy"><div class="movie-info"><h2>${title}</h2><div class="year">${mediaLabel} · ${year}</div><p class="overview">${escapeHTML(movie.overview || 'Todavía no hay sinopsis disponible.')}</p><div class="providers-label">Dónde verla</div><div class="providers">${providersMarkup}</div></div><div class="movie-actions"><button class="watch-button" type="button" data-watch-id="${movie.id}" data-watch-type="${movie.mediaType}">${isWatched ? 'Editar en Ya vi' : '＋ Ya la vi'}</button></div></article>`;
     }
     function updateResults() {
       const filter = availabilityFilter.value;
@@ -80,6 +161,42 @@ const API = 'https://api.themoviedb.org/3';
         : `${filtered.length} de ${currentMovies.length} ${countLabel} disponibles`;
       if (!filtered.length) results.innerHTML = '<p class="empty-providers">No hay títulos con ese tipo de disponibilidad en Argentina.</p>';
     }
+    results.addEventListener('click', event => {
+      const button = event.target.closest('[data-watch-id]');
+      if (!button) return;
+      const item = currentMovies.find(movie => String(movie.id) === button.dataset.watchId && movie.mediaType === button.dataset.watchType);
+      if (item) openDiary(item);
+    });
+    diaryList.addEventListener('click', event => {
+      const editButton = event.target.closest('[data-diary-edit]');
+      const deleteButton = event.target.closest('[data-diary-delete]');
+      if (deleteButton) {
+        diaryEntries = diaryEntries.filter(entry => diaryKey(entry) !== deleteButton.dataset.diaryDelete);
+        saveDiary();
+        updateResults();
+      } else if (editButton) {
+        const entry = diaryEntries.find(item => diaryKey(item) === editButton.dataset.diaryEdit);
+        if (entry) openDiary({ ...entry, title: entry.title, mediaType: entry.mediaType });
+      }
+    });
+    diaryForm.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!diaryItem) return;
+      const rating = Number(diaryForm.querySelector('[name="rating"]:checked')?.value);
+      if (!rating) return;
+      const tags = [...diaryForm.querySelectorAll('[name="tag"]:checked')].map(box => box.value);
+      const entry = storedDiaryEntry(diaryItem, rating, tags);
+      diaryEntries = diaryEntries.filter(item => diaryKey(item) !== diaryKey(entry));
+      diaryEntries.push(entry);
+      saveDiary();
+      diaryDialog.close();
+      updateResults();
+    });
+    document.querySelectorAll('#diary-close, #diary-cancel').forEach(button => button.addEventListener('click', () => diaryDialog.close()));
+    diaryDialog.addEventListener('click', event => {
+      if (event.target === diaryDialog) diaryDialog.close();
+    });
+    renderDiary();
     availabilityFilter.addEventListener('change', updateResults);
     sortOrder.addEventListener('change', updateResults);
     form.addEventListener('submit', async event => {
