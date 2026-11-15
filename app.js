@@ -18,8 +18,31 @@ const API = 'https://api.themoviedb.org/3';
     const diaryEmpty = document.querySelector('#diary-empty');
     const diaryCount = document.querySelector('#diary-count');
     const diaryStats = document.querySelector('#diary-stats');
+    const diaryTabCount = document.querySelector('#tab-diary-count');
+    const tabButtons = [...document.querySelectorAll('[role="tab"]')];
+    const tabPanels = [...document.querySelectorAll('[role="tabpanel"]')];
     let diaryItem = null;
     let diaryEntries = readDiary();
+    function activateTab(tab) {
+      tabButtons.forEach(button => {
+        const active = button === tab;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+      tabPanels.forEach(panel => { panel.hidden = panel.id !== tab.getAttribute('aria-controls'); });
+    }
+    tabButtons.forEach((tab, index) => {
+      tab.addEventListener('click', () => activateTab(tab));
+      tab.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const direction = event.key === 'ArrowRight' ? 1 : -1;
+        const next = tabButtons[(index + direction + tabButtons.length) % tabButtons.length];
+        activateTab(next);
+        next.focus();
+      });
+    });
     const configuredToken = window.CINEAR_TMDB_TOKEN?.trim() || '';
     keyInput.value = configuredToken || localStorage.getItem('cinear_tmdb_token') || '';
     document.querySelector('#save-key').addEventListener('click', () => {
@@ -95,6 +118,7 @@ const API = 'https://api.themoviedb.org/3';
     }
     function renderDiary() {
       diaryCount.textContent = `${diaryEntries.length} ${diaryEntries.length === 1 ? 'título' : 'títulos'}`;
+      diaryTabCount.textContent = String(diaryEntries.length);
       diaryEmpty.hidden = diaryEntries.length > 0;
       renderDiaryStats();
       diaryList.innerHTML = [...diaryEntries].reverse().map(entry => {
