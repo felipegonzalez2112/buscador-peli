@@ -101,11 +101,15 @@
     .watch-button { border:1px solid #514334; border-radius:999px; background:#29231e; color:#ffbd77; padding:8px 13px; font-size:.8rem; font-weight:700; transition:background .2s ease, transform .2s ease; }
     .watch-button:hover { background:#3a2d20; transform:translateY(-1px); }
     .diary { margin-top:40px; padding-top:24px; border-top:1px solid #302c30; }
-    .main-tabs { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin:28px 0 24px; padding:5px; border:1px solid #393338; border-radius:14px; background:#171519; }
-    .main-tab { min-height:44px; border-radius:10px; color:#aaa3a1; background:transparent; font-weight:700; transition:color .2s, background .2s, box-shadow .2s; }
-    .main-tab:hover { color:#fff; }
-    .main-tab.is-active { color:#24180e; background:#ffb15c; box-shadow:0 3px 12px #ffb15c22; }
-    .main-tab span { display:inline-grid; place-items:center; min-width:20px; height:20px; margin-left:4px; padding:0 5px; border-radius:999px; background:#ffffff22; font-size:.72rem; }
+    .main-tabs { width:max-content; max-width:100%; display:flex; gap:5px; margin:26px auto 30px; padding:5px; border:1px solid #383238; border-radius:16px; background:linear-gradient(180deg,#1c191e,#151317); box-shadow:0 10px 28px #0003, inset 0 1px #ffffff08; }
+    .main-tab { min-width:148px; min-height:48px; display:flex; align-items:center; justify-content:center; gap:9px; padding:0 18px; border:1px solid transparent; border-radius:12px; color:#aaa3a1; background:transparent; font-size:.92rem; font-weight:700; transition:color .2s, background .25s, border-color .25s, box-shadow .25s, transform .2s; }
+    .main-tab:hover { color:#f8eee4; background:#ffffff08; }
+    .main-tab:active { transform:scale(.97); }
+    .main-tab.is-active { color:#ffe1bd; border-color:#aa744333; background:linear-gradient(135deg,#56391f,#38291f); box-shadow:inset 0 1px #ffdda322, 0 3px 10px #0003; }
+    .tab-icon { width:18px; height:18px; flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; opacity:.82; }
+    .main-tab.is-active .tab-icon { color:#ffb15c; opacity:1; }
+    .tab-count { display:inline-grid; place-items:center; min-width:21px; height:21px; padding:0 6px; border:1px solid #ffffff16; border-radius:999px; color:#c4bab4; background:#ffffff0a; font-size:.7rem; font-weight:700; font-variant-numeric:tabular-nums; }
+    .main-tab.is-active .tab-count { color:#261a10; border-color:transparent; background:#ffb15c; }
     .tab-panel[hidden] { display:none !important; }
     .diary-heading { display:flex; align-items:end; justify-content:space-between; gap:12px; margin-bottom:15px; }
     .diary-heading h2 { margin:6px 0 0; font-size:1.65rem; letter-spacing:-.05em; }
@@ -174,7 +178,8 @@
     @keyframes diary-enter { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
     @media (max-width:600px) {
       .diary { margin-top:32px; padding-top:20px; }
-      .main-tabs { margin:20px 0 22px; position:sticky; top:8px; z-index:5; box-shadow:0 8px 20px #0004; }
+      .main-tabs { width:100%; margin:18px 0 24px; }
+      .main-tab { min-width:0; flex:1; min-height:46px; padding:0 10px; }
       .diary-stats { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
       .stat-card { min-height:108px; padding:11px; }
       .stat-card strong { font-size:1.3rem; }
