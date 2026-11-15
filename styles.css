@@ -149,7 +149,8 @@
     .diary-dialog { width:min(480px, calc(100% - 28px)); max-height:min(88dvh, 720px); overflow-y:auto; overscroll-behavior:contain; padding:0; border:1px solid #51464a; border-radius:22px; color:#f7f5f2; background:#1a181d; box-shadow:0 28px 90px #000a; }
     .diary-dialog::backdrop { background:#09080bd9; backdrop-filter:blur(5px); animation:backdrop-in .2s ease both; }
     .diary-dialog[open] { animation:dialog-in .34s cubic-bezier(.18,.8,.25,1) both; }
-    .diary-form { width:100%; padding:24px; }
+    /* `form` has the search bar layout globally; reset it inside the rating dialog. */
+    .diary-form { display:block; width:100%; margin:0; padding:24px; gap:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
     .dialog-top { display:flex; align-items:start; justify-content:space-between; }
     .dialog-top h2 { margin:6px 0 0; font-size:1.6rem; letter-spacing:-.05em; }
     .dialog-close { width:36px; height:36px; border-radius:50%; color:#d0c4bd; background:#302a30; font-size:1.45rem; }
