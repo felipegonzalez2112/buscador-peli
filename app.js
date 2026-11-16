@@ -1,19 +1,25 @@
 const API = 'https://api.themoviedb.org/3';
-    const themeSelect = document.querySelector('#theme-select');
+    const themeButtons = [...document.querySelectorAll('[data-theme-choice]')];
     const themeColorMeta = document.querySelector('#theme-color-meta');
     const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    let themePreference = localStorage.getItem('cinear_theme') || 'system';
     function applyTheme(preference, persist = false) {
+      themePreference = preference;
       const resolvedTheme = preference === 'system' ? (systemThemeQuery.matches ? 'dark' : 'light') : preference;
       document.documentElement.dataset.theme = resolvedTheme;
       themeColorMeta.content = resolvedTheme === 'dark' ? '#101014' : '#f7f5f3';
+      themeButtons.forEach(button => {
+        const active = button.dataset.themeChoice === preference;
+        button.classList.toggle('is-selected', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
       if (persist) localStorage.setItem('cinear_theme', preference);
     }
-    const savedThemePreference = localStorage.getItem('cinear_theme') || 'system';
-    themeSelect.value = ['system', 'light', 'dark'].includes(savedThemePreference) ? savedThemePreference : 'system';
-    applyTheme(themeSelect.value);
-    themeSelect.addEventListener('change', () => applyTheme(themeSelect.value, true));
+    if (!['system', 'light', 'dark'].includes(themePreference)) themePreference = 'system';
+    applyTheme(themePreference);
+    themeButtons.forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.themeChoice, true)));
     systemThemeQuery.addEventListener?.('change', () => {
-      if (themeSelect.value === 'system') applyTheme('system');
+      if (themePreference === 'system') applyTheme('system');
     });
     const form = document.querySelector('#search-form');
     const queryInput = document.querySelector('#query');
