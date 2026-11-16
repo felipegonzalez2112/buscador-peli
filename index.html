@@ -42,8 +42,17 @@
     <section id="diary-panel" class="diary tab-panel" role="tabpanel" aria-labelledby="tab-diary" hidden>
       <div class="diary-heading"><div><div class="eyebrow">Tu colección</div><h2 id="diary-title">Ya vi</h2></div><span id="diary-count">0 títulos</span></div>
       <div id="diary-stats" class="diary-stats" hidden></div>
+      <div class="diary-tools" aria-label="Filtrar y ordenar películas vistas">
+        <label for="diary-rating-filter">Qué me pareció
+          <select id="diary-rating-filter"><option value="all">Todas las calificaciones</option><option value="liked">Me gustaron · 4–5 ★</option><option value="neutral">Ni fu ni fa · 3 ★</option><option value="disliked">No me gustaron · 1–2 ★</option></select>
+        </label>
+        <label for="diary-sort-order">Ordenar por
+          <select id="diary-sort-order"><option value="recent">Más recientes</option><option value="rating-desc">Mejor puntuadas</option><option value="rating-asc">Peor puntuadas</option><option value="title">Título A–Z</option></select>
+        </label>
+      </div>
       <div id="diary-list" class="diary-list"></div>
       <p id="diary-empty" class="diary-empty">Guardá lo que viste, poné tu nota y agregá etiquetas.</p>
+      <p id="diary-filter-empty" class="diary-empty" hidden>No hay títulos con esa calificación.</p>
     </section>
     <dialog id="diary-dialog" class="diary-dialog">
       <form id="diary-form" class="diary-form">

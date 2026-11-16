@@ -16,8 +16,11 @@ const API = 'https://api.themoviedb.org/3';
     const diaryForm = document.querySelector('#diary-form');
     const diaryList = document.querySelector('#diary-list');
     const diaryEmpty = document.querySelector('#diary-empty');
+    const diaryFilterEmpty = document.querySelector('#diary-filter-empty');
     const diaryCount = document.querySelector('#diary-count');
     const diaryStats = document.querySelector('#diary-stats');
+    const diaryRatingFilter = document.querySelector('#diary-rating-filter');
+    const diarySortOrder = document.querySelector('#diary-sort-order');
     const diaryTabCount = document.querySelector('#tab-diary-count');
     const tabButtons = [...document.querySelectorAll('[role="tab"]')];
     const tabPanels = [...document.querySelectorAll('[role="tabpanel"]')];
@@ -65,17 +68,32 @@ const API = 'https://api.themoviedb.org/3';
       { key: 'ads', label: 'Con anuncios' }, { key: 'rent', label: 'Alquiler' }, { key: 'buy', label: 'Compra' }
     ];
     function getRegion(data) { return data.results?.AR || {}; }
+    function providerSearchUrl(provider, title) {
+      const query = encodeURIComponent(title);
+      const searchUrls = {
+        2: `https://tv.apple.com/search?term=${query}`,
+        8: `https://www.netflix.com/search?q=${query}`,
+        9: `https://www.primevideo.com/search/ref=atv_nb_sr?phrase=${query}`,
+        11: `https://mubi.com/search?query=${query}`,
+        337: `https://www.disneyplus.com/search/${query}`,
+        350: `https://tv.apple.com/search?term=${query}`,
+        531: `https://www.paramountplus.com/search/?query=${query}`,
+        1899: `https://play.max.com/search?q=${query}`
+      };
+      if (searchUrls[Number(provider.provider_id)]) return searchUrls[Number(provider.provider_id)];
+      return `https://www.google.com/search?q=${encodeURIComponent(`site:${provider.provider_name} ${title}`)}`;
+    }
     function hasAvailability(movie, filter) {
       if (filter === 'all') return true;
       if (filter === 'streaming') return ['flatrate', 'free', 'ads'].some(key => movie.region[key]?.length);
       return Boolean(movie.region[filter]?.length);
     }
-    function providerList(region) {
+    function providerList(region, title) {
       const seen = new Set();
       const groupsMarkup = providerGroups.map(group => {
         const providers = (region[group.key] || []).filter(provider => !seen.has(provider.provider_id) && seen.add(provider.provider_id));
         if (!providers.length) return '';
-        return `<div class="provider-group"><div class="availability-type">${group.label}</div><div class="providers">${providers.map(p => `<span class="provider">${p.logo_path ? `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="" loading="lazy">` : ''}${escapeHTML(p.provider_name)}</span>`).join('')}</div></div>`;
+        return `<div class="provider-group"><div class="availability-type">${group.label}</div><div class="providers">${providers.map(p => `<a class="provider" href="${providerSearchUrl(p, title)}" target="_blank" rel="noreferrer" aria-label="Buscar ${escapeHTML(title)} en ${escapeHTML(p.provider_name)}">${p.logo_path ? `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="" loading="lazy">` : ''}${escapeHTML(p.provider_name)}</a>`).join('')}</div></div>`;
       }).join('');
       return groupsMarkup || '<span class="empty-providers">Sin disponibilidad informada en Argentina.</span>';
     }
@@ -117,11 +135,25 @@ const API = 'https://api.themoviedb.org/3';
         <article class="stat-card stat-tags"><span class="stat-label">Emociones y etiquetas</span>${topTags.length ? `<div class="tag-stats">${topTags.map(([tag, count]) => `<div class="tag-stat"><span>${escapeHTML(tag)}</span><span class="tag-stat-track"><i style="--tag-fill:${Math.round(count / maxTagCount * 100)}%"></i></span><b>${count}</b></div>`).join('')}</div>` : '<span class="stat-note">Agregá etiquetas al puntuar para ver tus tendencias.</span>'}</article>`;
     }
     function renderDiary() {
-      diaryCount.textContent = `${diaryEntries.length} ${diaryEntries.length === 1 ? 'título' : 'títulos'}`;
+      let visibleEntries = diaryEntries.filter(entry => {
+        const rating = Number(entry.rating) || 0;
+        if (diaryRatingFilter.value === 'liked') return rating >= 4;
+        if (diaryRatingFilter.value === 'neutral') return rating === 3;
+        if (diaryRatingFilter.value === 'disliked') return rating <= 2;
+        return true;
+      });
+      if (diarySortOrder.value === 'recent') visibleEntries.sort((a, b) => (b.ratedAt || '').localeCompare(a.ratedAt || ''));
+      if (diarySortOrder.value === 'rating-desc') visibleEntries.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0) || (b.ratedAt || '').localeCompare(a.ratedAt || ''));
+      if (diarySortOrder.value === 'rating-asc') visibleEntries.sort((a, b) => (Number(a.rating) || 0) - (Number(b.rating) || 0) || (b.ratedAt || '').localeCompare(a.ratedAt || ''));
+      if (diarySortOrder.value === 'title') visibleEntries.sort((a, b) => a.title.localeCompare(b.title, 'es'));
+      diaryCount.textContent = visibleEntries.length === diaryEntries.length
+        ? `${diaryEntries.length} ${diaryEntries.length === 1 ? 'título' : 'títulos'}`
+        : `${visibleEntries.length} de ${diaryEntries.length} títulos`;
       diaryTabCount.textContent = String(diaryEntries.length);
       diaryEmpty.hidden = diaryEntries.length > 0;
+      diaryFilterEmpty.hidden = diaryEntries.length === 0 || visibleEntries.length > 0;
       renderDiaryStats();
-      diaryList.innerHTML = [...diaryEntries].reverse().map(entry => {
+      diaryList.innerHTML = visibleEntries.map(entry => {
         const title = escapeHTML(entry.title);
         const tags = (entry.tags || []).map(tag => `<span class="diary-tag">${escapeHTML(tag)}</span>`).join('');
         const poster = entry.poster ? `<img class="diary-poster" src="${escapeHTML(entry.poster)}" alt="" loading="lazy">` : '<div class="diary-poster" aria-hidden="true"></div>';
@@ -162,7 +194,7 @@ const API = 'https://api.themoviedb.org/3';
     function renderMovie(movie) {
       const providersMarkup = movie.region.providerError
         ? `<span class="empty-providers">${escapeHTML(movie.region.providerError)}</span>`
-        : providerList(movie.region);
+        : providerList(movie.region, movie.title || movie.name || '');
       const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : '';
       const title = escapeHTML(movie.title || movie.name || (movie.mediaType === 'tv' ? 'Serie sin título' : 'Película sin título'));
       const date = movie.release_date || movie.first_air_date;
@@ -221,6 +253,8 @@ const API = 'https://api.themoviedb.org/3';
       if (event.target === diaryDialog) diaryDialog.close();
     });
     renderDiary();
+    diaryRatingFilter.addEventListener('change', renderDiary);
+    diarySortOrder.addEventListener('change', renderDiary);
     availabilityFilter.addEventListener('change', updateResults);
     sortOrder.addEventListener('change', updateResults);
     form.addEventListener('submit', async event => {
