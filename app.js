@@ -20,6 +20,7 @@ const API = 'https://api.themoviedb.org/3';
     const diaryCount = document.querySelector('#diary-count');
     const diaryStats = document.querySelector('#diary-stats');
     const diaryRatingFilter = document.querySelector('#diary-rating-filter');
+    const diaryTagFilter = document.querySelector('#diary-tag-filter');
     const diarySortOrder = document.querySelector('#diary-sort-order');
     const diaryTabCount = document.querySelector('#tab-diary-count');
     const tabButtons = [...document.querySelectorAll('[role="tab"]')];
@@ -135,8 +136,13 @@ const API = 'https://api.themoviedb.org/3';
         <article class="stat-card stat-tags"><span class="stat-label">Emociones y etiquetas</span>${topTags.length ? `<div class="tag-stats">${topTags.map(([tag, count]) => `<div class="tag-stat"><span>${escapeHTML(tag)}</span><span class="tag-stat-track"><i style="--tag-fill:${Math.round(count / maxTagCount * 100)}%"></i></span><b>${count}</b></div>`).join('')}</div>` : '<span class="stat-note">Agregá etiquetas al puntuar para ver tus tendencias.</span>'}</article>`;
     }
     function renderDiary() {
+      const selectedTag = diaryTagFilter.value;
+      const tags = [...new Set(diaryEntries.flatMap(entry => entry.tags || []))].sort((a, b) => a.localeCompare(b, 'es'));
+      diaryTagFilter.innerHTML = '<option value="all">Todas las etiquetas</option>' + tags.map(tag => `<option value="${escapeHTML(tag)}">${escapeHTML(tag)}</option>`).join('');
+      diaryTagFilter.value = tags.includes(selectedTag) ? selectedTag : 'all';
       let visibleEntries = diaryEntries.filter(entry => {
         const rating = Number(entry.rating) || 0;
+        if (diaryTagFilter.value !== 'all' && !(entry.tags || []).includes(diaryTagFilter.value)) return false;
         if (diaryRatingFilter.value === 'liked') return rating >= 4;
         if (diaryRatingFilter.value === 'neutral') return rating === 3;
         if (diaryRatingFilter.value === 'disliked') return rating <= 2;
@@ -152,6 +158,7 @@ const API = 'https://api.themoviedb.org/3';
       diaryTabCount.textContent = String(diaryEntries.length);
       diaryEmpty.hidden = diaryEntries.length > 0;
       diaryFilterEmpty.hidden = diaryEntries.length === 0 || visibleEntries.length > 0;
+      if (diaryEntries.length && !visibleEntries.length) diaryFilterEmpty.textContent = 'No hay títulos que coincidan con esos filtros.';
       renderDiaryStats();
       diaryList.innerHTML = visibleEntries.map(entry => {
         const title = escapeHTML(entry.title);
@@ -254,6 +261,7 @@ const API = 'https://api.themoviedb.org/3';
     });
     renderDiary();
     diaryRatingFilter.addEventListener('change', renderDiary);
+    diaryTagFilter.addEventListener('change', renderDiary);
     diarySortOrder.addEventListener('change', renderDiary);
     availabilityFilter.addEventListener('change', updateResults);
     sortOrder.addEventListener('change', updateResults);
