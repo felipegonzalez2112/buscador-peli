@@ -22,11 +22,17 @@ const API = 'https://api.themoviedb.org/3';
     const diaryRatingFilter = document.querySelector('#diary-rating-filter');
     const diaryTagFilter = document.querySelector('#diary-tag-filter');
     const diarySortOrder = document.querySelector('#diary-sort-order');
+    const watchlistList = document.querySelector('#watchlist-list');
+    const watchlistEmpty = document.querySelector('#watchlist-empty');
+    const watchlistCount = document.querySelector('#watchlist-count');
+    const watchlistTabCount = document.querySelector('#tab-watchlist-count');
+    const actionFeedback = document.querySelector('#action-feedback');
     const diaryTabCount = document.querySelector('#tab-diary-count');
     const tabButtons = [...document.querySelectorAll('[role="tab"]')];
     const tabPanels = [...document.querySelectorAll('[role="tabpanel"]')];
     let diaryItem = null;
     let diaryEntries = readDiary();
+    let watchlistEntries = readWatchlist();
     function activateTab(tab) {
       tabButtons.forEach(button => {
         const active = button === tab;
@@ -69,20 +75,38 @@ const API = 'https://api.themoviedb.org/3';
       { key: 'ads', label: 'Con anuncios' }, { key: 'rent', label: 'Alquiler' }, { key: 'buy', label: 'Compra' }
     ];
     function getRegion(data) { return data.results?.AR || {}; }
-    function providerSearchUrl(provider, title) {
-      const query = encodeURIComponent(title);
-      const searchUrls = {
-        2: `https://tv.apple.com/search?term=${query}`,
-        8: `https://www.netflix.com/search?q=${query}`,
-        9: `https://www.primevideo.com/search/ref=atv_nb_sr?phrase=${query}`,
-        11: `https://mubi.com/search?query=${query}`,
-        337: `https://www.disneyplus.com/search/${query}`,
-        350: `https://tv.apple.com/search?term=${query}`,
-        531: `https://www.paramountplus.com/search/?query=${query}`,
-        1899: `https://play.max.com/search?q=${query}`
+    function providerAppUrl(provider) {
+      const id = Number(provider.provider_id);
+      const homes = {
+        2: 'https://tv.apple.com/', 3: 'https://www.youtube.com/', 8: 'https://www.netflix.com/',
+        9: 'https://www.primevideo.com/', 11: 'https://mubi.com/', 35: 'https://www.rakuten.tv/',
+        73: 'https://tubitv.com/', 167: 'https://www.clarovideo.com/', 189: 'https://play.max.com/',
+        191: 'https://qubit.tv/', 192: 'https://www.youtube.com/', 195: 'https://play.cine.ar/',
+        230: 'https://www.flow.com.ar/', 283: 'https://www.crunchyroll.com/', 300: 'https://pluto.tv/',
+        337: 'https://www.disneyplus.com/', 339: 'https://tv.movistar.com.ar/', 350: 'https://tv.apple.com/',
+        531: 'https://www.paramountplus.com/', 538: 'https://www.plex.tv/', 619: 'https://www.disneyplus.com/'
       };
-      if (searchUrls[Number(provider.provider_id)]) return searchUrls[Number(provider.provider_id)];
-      return `https://www.google.com/search?q=${encodeURIComponent(`site:${provider.provider_name} ${title}`)}`;
+      if (homes[id]) return homes[id];
+      const name = provider.provider_name.toLowerCase();
+      if (name.includes('netflix')) return homes[8];
+      if (name.includes('prime video') || name.includes('amazon')) return homes[9];
+      if (name.includes('disney') || name.includes('star+')) return homes[337];
+      if (name.includes('max') || name.includes('hbo')) return homes[189];
+      if (name.includes('apple tv')) return homes[2];
+      if (name.includes('paramount')) return homes[531];
+      if (name.includes('mubi')) return homes[11];
+      if (name.includes('crunchyroll')) return homes[283];
+      if (name.includes('plex')) return homes[538];
+      if (name.includes('youtube') || name.includes('google play')) return homes[192];
+      if (name.includes('tubi')) return homes[73];
+      if (name.includes('pluto')) return homes[300];
+      if (name.includes('rakuten')) return homes[35];
+      if (name.includes('qubit')) return homes[191];
+      if (name.includes('cine.ar') || name.includes('cine ar')) return homes[195];
+      if (name.includes('flow')) return homes[230];
+      if (name.includes('movistar')) return homes[339];
+      if (name.includes('claro')) return homes[167];
+      return '';
     }
     function hasAvailability(movie, filter) {
       if (filter === 'all') return true;
@@ -94,7 +118,11 @@ const API = 'https://api.themoviedb.org/3';
       const groupsMarkup = providerGroups.map(group => {
         const providers = (region[group.key] || []).filter(provider => !seen.has(provider.provider_id) && seen.add(provider.provider_id));
         if (!providers.length) return '';
-        return `<div class="provider-group"><div class="availability-type">${group.label}</div><div class="providers">${providers.map(p => `<a class="provider" href="${providerSearchUrl(p, title)}" target="_blank" rel="noreferrer" aria-label="Buscar ${escapeHTML(title)} en ${escapeHTML(p.provider_name)}">${p.logo_path ? `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="" loading="lazy">` : ''}${escapeHTML(p.provider_name)}</a>`).join('')}</div></div>`;
+        return `<div class="provider-group"><div class="availability-type">${group.label}</div><div class="providers">${providers.map(p => {
+          const appUrl = providerAppUrl(p);
+          const actionLabel = appUrl ? `Copiar ${title} y abrir ${p.provider_name}` : `Copiar ${title}; luego abrir ${p.provider_name}`;
+          return `<a class="provider" ${appUrl ? `href="${appUrl}" target="_blank" rel="noreferrer"` : 'href="#" data-unsupported-provider="true"'} data-provider-title="${escapeHTML(title)}" data-provider-name="${escapeHTML(p.provider_name)}" aria-label="${escapeHTML(actionLabel)}">${p.logo_path ? `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="" loading="lazy">` : ''}${escapeHTML(p.provider_name)}</a>`;
+        }).join('')}</div></div>`;
       }).join('');
       return groupsMarkup || '<span class="empty-providers">Sin disponibilidad informada en Argentina.</span>';
     }
@@ -105,10 +133,56 @@ const API = 'https://api.themoviedb.org/3';
         return Array.isArray(saved) ? saved : [];
       } catch { return []; }
     }
+    function readWatchlist() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('cinear_watchlist') || '[]');
+        return Array.isArray(saved) ? saved : [];
+      } catch { return []; }
+    }
     function diaryKey(item) { return `${item.mediaType}:${item.id}`; }
+    function watchlistKey(item) { return diaryKey(item); }
     function saveDiary() {
       localStorage.setItem('cinear_diary', JSON.stringify(diaryEntries));
       renderDiary();
+    }
+    function saveWatchlist() {
+      localStorage.setItem('cinear_watchlist', JSON.stringify(watchlistEntries));
+      renderWatchlist();
+    }
+    let feedbackTimeout;
+    function showFeedback(message) {
+      actionFeedback.textContent = message;
+      actionFeedback.hidden = false;
+      clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => { actionFeedback.hidden = true; }, 4200);
+    }
+    function legacyCopy(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.append(textarea);
+      textarea.select();
+      try { return document.execCommand('copy'); }
+      catch { return false; }
+      finally { textarea.remove(); }
+    }
+    function copyMovieTitle(title, providerName) {
+      const copiedFallback = legacyCopy(title);
+      if (!navigator.clipboard?.writeText) {
+        showFeedback(copiedFallback
+          ? `Copiamos “${title}”. Pegalo en ${providerName}.`
+          : `Abrí ${providerName} y buscá “${title}”.`);
+        return;
+      }
+      navigator.clipboard.writeText(title).then(() => {
+        showFeedback(`Copiamos “${title}”. Pegalo en ${providerName}.`);
+      }).catch(() => {
+        showFeedback(copiedFallback
+          ? `Copiamos “${title}”. Pegalo en ${providerName}.`
+          : `Abrí ${providerName} y buscá “${title}”.`);
+      });
     }
     function formatRatingDate(value) {
       if (!value) return 'Fecha no disponible';
@@ -168,6 +242,16 @@ const API = 'https://api.themoviedb.org/3';
         return `<article class="diary-entry">${poster}<div><h3>${title}</h3><div class="diary-meta">${entry.mediaType === 'tv' ? 'Serie' : 'Película'} · ${escapeHTML(entry.year || 'Año desconocido')} <span class="diary-rating" aria-label="${entry.rating} de 5 estrellas">${stars}</span></div><div class="diary-rated-at">Calificada el ${formatRatingDate(entry.ratedAt)}</div>${tags ? `<div class="diary-tags">${tags}</div>` : ''}</div><div class="diary-actions"><button class="diary-action" type="button" data-diary-edit="${escapeHTML(diaryKey(entry))}">Editar</button><button class="diary-action" type="button" data-diary-delete="${escapeHTML(diaryKey(entry))}" aria-label="Eliminar ${title}">Eliminar</button></div></article>`;
       }).join('');
     }
+    function renderWatchlist() {
+      watchlistCount.textContent = `${watchlistEntries.length} ${watchlistEntries.length === 1 ? 'título' : 'títulos'}`;
+      watchlistTabCount.textContent = String(watchlistEntries.length);
+      watchlistEmpty.hidden = watchlistEntries.length > 0;
+      watchlistList.innerHTML = [...watchlistEntries].sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || '')).map(entry => {
+        const title = escapeHTML(entry.title);
+        const poster = entry.poster ? `<img class="diary-poster" src="${escapeHTML(entry.poster)}" alt="" loading="lazy">` : '<div class="diary-poster" aria-hidden="true"></div>';
+        return `<article class="diary-entry">${poster}<div><h3>${title}</h3><div class="diary-meta">${entry.mediaType === 'tv' ? 'Serie' : 'Película'} · ${escapeHTML(entry.year || 'Año desconocido')}</div></div><div class="diary-actions"><button class="diary-action" type="button" data-watchlist-remove="${escapeHTML(watchlistKey(entry))}" aria-label="Quitar ${title} de Quiero ver">Quitar</button></div></article>`;
+      }).join('');
+    }
     function openDiary(item) {
       diaryItem = item;
       const key = diaryKey(item);
@@ -192,6 +276,86 @@ const API = 'https://api.themoviedb.org/3';
         ratedAt: new Date().toISOString()
       };
     }
+    function storedWatchlistEntry(item) {
+      const date = item.release_date || item.first_air_date;
+      return {
+        id: item.id,
+        mediaType: item.mediaType,
+        title: item.title || item.name || 'Título sin nombre',
+        year: date ? date.slice(0, 4) : 'Año desconocido',
+        poster: item.poster_path ? `https://image.tmdb.org/t/p/w185${item.poster_path}` : '',
+        addedAt: new Date().toISOString()
+      };
+    }
+    function validBackupEntry(entry, kind) {
+      if (!entry || typeof entry !== 'object') return null;
+      const id = Number(entry.id);
+      if (!Number.isInteger(id) || id <= 0 || !['movie', 'tv'].includes(entry.mediaType) || typeof entry.title !== 'string' || !entry.title.trim()) return null;
+      const poster = typeof entry.poster === 'string' && entry.poster.startsWith('https://image.tmdb.org/') ? entry.poster : '';
+      const common = {
+        id,
+        mediaType: entry.mediaType,
+        title: entry.title.trim().slice(0, 300),
+        year: typeof entry.year === 'string' ? entry.year.slice(0, 20) : 'Año desconocido',
+        poster
+      };
+      if (kind === 'watchlist') return { ...common, addedAt: typeof entry.addedAt === 'string' ? entry.addedAt : '' };
+      const rating = Number(entry.rating);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+      return {
+        ...common,
+        rating,
+        tags: Array.isArray(entry.tags) ? entry.tags.filter(tag => typeof tag === 'string').map(tag => tag.slice(0, 80)).slice(0, 30) : [],
+        ratedAt: typeof entry.ratedAt === 'string' ? entry.ratedAt : ''
+      };
+    }
+    function mergeEntries(existing, incoming, keyFunction) {
+      const merged = new Map(existing.map(entry => [keyFunction(entry), entry]));
+      incoming.forEach(entry => merged.set(keyFunction(entry), entry));
+      return [...merged.values()];
+    }
+    function exportBackup() {
+      const backup = {
+        format: 'cine-ar-backup',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        diary: diaryEntries,
+        watchlist: watchlistEntries
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cine-ar-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showFeedback('Respaldo de Ya vi y Quiero ver descargado.');
+    }
+    async function importBackup(file) {
+      let backup;
+      try { backup = JSON.parse(await file.text()); }
+      catch { throw new Error('El archivo no contiene un JSON válido.'); }
+      if (backup?.format !== 'cine-ar-backup' || backup.version !== 1 || !Array.isArray(backup.diary) || !Array.isArray(backup.watchlist)) {
+        throw new Error('Ese archivo no parece ser un respaldo de Cine AR compatible.');
+      }
+      const importedDiary = backup.diary.map(entry => validBackupEntry(entry, 'diary')).filter(Boolean);
+      const importedWatchlist = backup.watchlist.map(entry => validBackupEntry(entry, 'watchlist')).filter(Boolean);
+      if ((backup.diary.length && !importedDiary.length) || (backup.watchlist.length && !importedWatchlist.length)) {
+        throw new Error('El respaldo no contiene registros válidos. No se modificaron tus datos.');
+      }
+      const duplicates = importedDiary.filter(entry => diaryEntries.some(saved => diaryKey(saved) === diaryKey(entry))).length
+        + importedWatchlist.filter(entry => watchlistEntries.some(saved => watchlistKey(saved) === watchlistKey(entry))).length;
+      const detail = duplicates ? ` Los ${duplicates} registros que coincidan se actualizarán con los del archivo.` : '';
+      if (!window.confirm(`Se combinarán ${importedDiary.length} vistos y ${importedWatchlist.length} pendientes con los datos de este dispositivo.${detail} ¿Continuar?`)) return;
+      diaryEntries = mergeEntries(diaryEntries, importedDiary, diaryKey);
+      watchlistEntries = mergeEntries(watchlistEntries, importedWatchlist, watchlistKey);
+      localStorage.setItem('cinear_diary', JSON.stringify(diaryEntries));
+      localStorage.setItem('cinear_watchlist', JSON.stringify(watchlistEntries));
+      renderDiary();
+      renderWatchlist();
+      updateResults();
+      showFeedback(`Respaldo importado: ${importedDiary.length} vistos y ${importedWatchlist.length} pendientes.`);
+    }
     async function loadMovie(movie, token, type) {
       let region = {};
       try { region = getRegion(await tmdb(`/${movie.mediaType || type}/${movie.id}/watch/providers`, token)); }
@@ -208,9 +372,15 @@ const API = 'https://api.themoviedb.org/3';
       const year = date ? date.slice(0,4) : 'Año desconocido';
       const mediaLabel = movie.mediaType === 'tv' ? 'Serie' : 'Película';
       const isWatched = diaryEntries.some(entry => diaryKey(entry) === diaryKey(movie));
-      return `<article class="movie"><img class="poster" src="${poster}" alt="Póster de ${title}" loading="lazy"><div class="movie-info"><h2>${title}</h2><div class="year">${mediaLabel} · ${year}</div><p class="overview">${escapeHTML(movie.overview || 'Todavía no hay sinopsis disponible.')}</p><div class="providers-label">Dónde verla</div><div class="providers">${providersMarkup}</div></div><div class="movie-actions"><button class="watch-button" type="button" data-watch-id="${movie.id}" data-watch-type="${movie.mediaType}">${isWatched ? 'Editar en Ya vi' : '＋ Ya la vi'}</button></div></article>`;
+      const isOnWatchlist = watchlistEntries.some(entry => watchlistKey(entry) === watchlistKey(movie));
+      return `<article class="movie"><img class="poster" src="${poster}" alt="Póster de ${title}" loading="lazy"><div class="movie-info"><h2>${title}</h2><div class="year">${mediaLabel} · ${year}</div><p class="overview">${escapeHTML(movie.overview || 'Todavía no hay sinopsis disponible.')}</p><div class="providers-label">Dónde verla · tocá para copiar el título y abrir la app si tu dispositivo la reconoce</div><div class="providers">${providersMarkup}</div></div><div class="movie-actions"><button class="watch-button" type="button" data-watch-id="${movie.id}" data-watch-type="${movie.mediaType}">${isWatched ? 'Editar en Ya vi' : '＋ Ya la vi'}</button><button class="watchlist-button" type="button" data-watchlist-id="${movie.id}" data-watchlist-type="${movie.mediaType}">${isOnWatchlist ? '✓ En Quiero ver' : '＋ Quiero ver'}</button></div></article>`;
     }
     function updateResults() {
+      if (!currentMovies.length) {
+        results.replaceChildren();
+        resultTools.hidden = true;
+        return;
+      }
       const filter = availabilityFilter.value;
       const order = sortOrder.value;
       const filtered = currentMovies.filter(movie => hasAvailability(movie, filter));
@@ -225,6 +395,29 @@ const API = 'https://api.themoviedb.org/3';
       if (!filtered.length) results.innerHTML = '<p class="empty-providers">No hay títulos con ese tipo de disponibilidad en Argentina.</p>';
     }
     results.addEventListener('click', event => {
+      const providerLink = event.target.closest('[data-provider-title]');
+      if (providerLink) {
+        const title = providerLink.dataset.providerTitle;
+        const providerName = providerLink.dataset.providerName;
+        if (providerLink.dataset.unsupportedProvider) {
+          event.preventDefault();
+          copyMovieTitle(title, providerName);
+          return;
+        }
+        copyMovieTitle(title, providerName);
+        return;
+      }
+      const watchlistButton = event.target.closest('[data-watchlist-id]');
+      if (watchlistButton) {
+        const item = currentMovies.find(movie => String(movie.id) === watchlistButton.dataset.watchlistId && movie.mediaType === watchlistButton.dataset.watchlistType);
+        if (!item) return;
+        const key = watchlistKey(item);
+        const exists = watchlistEntries.some(entry => watchlistKey(entry) === key);
+        watchlistEntries = exists ? watchlistEntries.filter(entry => watchlistKey(entry) !== key) : [...watchlistEntries, storedWatchlistEntry(item)];
+        saveWatchlist();
+        updateResults();
+        return;
+      }
       const button = event.target.closest('[data-watch-id]');
       if (!button) return;
       const item = currentMovies.find(movie => String(movie.id) === button.dataset.watchId && movie.mediaType === button.dataset.watchType);
@@ -242,6 +435,13 @@ const API = 'https://api.themoviedb.org/3';
         if (entry) openDiary({ ...entry, title: entry.title, mediaType: entry.mediaType });
       }
     });
+    watchlistList.addEventListener('click', event => {
+      const removeButton = event.target.closest('[data-watchlist-remove]');
+      if (!removeButton) return;
+      watchlistEntries = watchlistEntries.filter(entry => watchlistKey(entry) !== removeButton.dataset.watchlistRemove);
+      saveWatchlist();
+      updateResults();
+    });
     diaryForm.addEventListener('submit', event => {
       event.preventDefault();
       if (!diaryItem) return;
@@ -251,7 +451,9 @@ const API = 'https://api.themoviedb.org/3';
       const entry = storedDiaryEntry(diaryItem, rating, tags);
       diaryEntries = diaryEntries.filter(item => diaryKey(item) !== diaryKey(entry));
       diaryEntries.push(entry);
+      watchlistEntries = watchlistEntries.filter(item => watchlistKey(item) !== watchlistKey(entry));
       saveDiary();
+      saveWatchlist();
       diaryDialog.close();
       updateResults();
     });
@@ -260,9 +462,20 @@ const API = 'https://api.themoviedb.org/3';
       if (event.target === diaryDialog) diaryDialog.close();
     });
     renderDiary();
+    renderWatchlist();
     diaryRatingFilter.addEventListener('change', renderDiary);
     diaryTagFilter.addEventListener('change', renderDiary);
     diarySortOrder.addEventListener('change', renderDiary);
+    document.querySelector('#export-backup').addEventListener('click', exportBackup);
+    const backupFileInput = document.querySelector('#import-backup-file');
+    document.querySelector('#import-backup-button').addEventListener('click', () => backupFileInput.click());
+    backupFileInput.addEventListener('change', async () => {
+      const file = backupFileInput.files?.[0];
+      if (!file) return;
+      try { await importBackup(file); }
+      catch (error) { showFeedback(error.message || 'No se pudo importar el respaldo.'); }
+      finally { backupFileInput.value = ''; }
+    });
     availabilityFilter.addEventListener('change', updateResults);
     sortOrder.addEventListener('change', updateResults);
     form.addEventListener('submit', async event => {
@@ -274,6 +487,7 @@ const API = 'https://api.themoviedb.org/3';
       searchButton.disabled = true;
       searchButton.textContent = 'Buscando…';
       results.replaceChildren();
+      currentMovies = [];
       resultTools.hidden = true;
       const type = mediaType.value;
       status.textContent = type === 'both' ? 'Buscando películas y series…' : `Buscando ${type === 'tv' ? 'series' : 'películas'}…`;

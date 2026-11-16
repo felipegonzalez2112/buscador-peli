@@ -17,6 +17,7 @@
     <nav class="main-tabs" role="tablist" aria-label="Secciones de Cine AR">
       <button class="main-tab is-active" id="tab-search" type="button" role="tab" aria-selected="true" aria-controls="search-panel"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"></circle><path d="m15.5 15.5 4.2 4.2"></path></svg><span class="tab-label">Buscar</span></button>
       <button class="main-tab" id="tab-diary" type="button" role="tab" aria-selected="false" aria-controls="diary-panel" tabindex="-1"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.8h14v15l-7-3.8-7 3.8z"></path><path d="M8.5 8.5h7M8.5 11.5h7"></path></svg><span class="tab-label">Ya vi</span><span class="tab-count" id="tab-diary-count">0</span></button>
+      <button class="main-tab" id="tab-watchlist" type="button" role="tab" aria-selected="false" aria-controls="watchlist-panel" tabindex="-1"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"></path></svg><span class="tab-label">Quiero ver</span><span class="tab-count" id="tab-watchlist-count">0</span></button>
     </nav>
     <section id="search-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-search">
     <section class="intro"><div class="eyebrow">Tu próxima película</div><h1>¿Qué querés ver?</h1><p>Buscá una peli y encontrá dónde está disponible.</p></section>
@@ -42,6 +43,7 @@
     <section id="diary-panel" class="diary tab-panel" role="tabpanel" aria-labelledby="tab-diary" hidden>
       <div class="diary-heading"><div><div class="eyebrow">Tu colección</div><h2 id="diary-title">Ya vi</h2></div><span id="diary-count">0 títulos</span></div>
       <div id="diary-stats" class="diary-stats" hidden></div>
+      <div class="backup-tools"><button class="diary-action" id="export-backup" type="button">Exportar respaldo</button><button class="diary-action" id="import-backup-button" type="button">Importar respaldo</button><input id="import-backup-file" type="file" accept="application/json,.json" hidden><p class="backup-hint">Incluye “Ya vi” y “Quiero ver”. Al importar, suma los títulos nuevos y actualiza los que coincidan.</p></div>
       <div class="diary-tools" aria-label="Filtrar y ordenar películas vistas">
         <label for="diary-rating-filter">Qué me pareció
           <select id="diary-rating-filter"><option value="all">Todas las calificaciones</option><option value="liked">Me gustaron · 4–5 ★</option><option value="neutral">Ni fu ni fa · 3 ★</option><option value="disliked">No me gustaron · 1–2 ★</option></select>
@@ -56,6 +58,11 @@
       <div id="diary-list" class="diary-list"></div>
       <p id="diary-empty" class="diary-empty">Guardá lo que viste, poné tu nota y agregá etiquetas.</p>
       <p id="diary-filter-empty" class="diary-empty" hidden>No hay títulos con esa calificación.</p>
+    </section>
+    <section id="watchlist-panel" class="diary tab-panel" role="tabpanel" aria-labelledby="tab-watchlist" hidden>
+      <div class="diary-heading"><div><div class="eyebrow">Tu lista</div><h2>Quiero ver</h2></div><span id="watchlist-count">0 títulos</span></div>
+      <div id="watchlist-list" class="diary-list"></div>
+      <p id="watchlist-empty" class="diary-empty">Agregá desde los resultados las películas y series que querés ver.</p>
     </section>
     <dialog id="diary-dialog" class="diary-dialog">
       <form id="diary-form" class="diary-form">
@@ -78,6 +85,7 @@
       </form>
     </dialog>
   </main>
+  <div id="action-feedback" class="action-feedback" role="status" aria-live="polite" hidden></div>
   <footer>Datos e imágenes de películas y series: <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">TMDb</a>. Disponibilidad para Argentina.</footer>
   <script src="config.js" defer></script>
   <script src="app.js" defer></script>
