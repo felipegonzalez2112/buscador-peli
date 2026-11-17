@@ -197,14 +197,6 @@ export function setResults(movies, diary = currentDiary, watchlist = currentWatc
 
   updateResults();
 }
-  currentWatchlist = watchlist;
-
-  if (resultTools) {
-    resultTools.hidden = !movies.length;
-  }
-
-  updateResults();
-}
 
 /**
  * Inicializa los eventos del formulario de búsqueda, filtros y delegación de eventos.
