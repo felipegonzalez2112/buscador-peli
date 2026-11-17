@@ -63,13 +63,6 @@ subscribe(({ diary, watchlist }) => {
   setResults(getCurrentMovies(), diary, watchlist);
 });
 
-// Render inicial con los datos guardados
-const initialDiary = getDiary();
-const initialWatchlist = getWatchlist();
-renderDiary(initialDiary);
-renderWatchlist(initialWatchlist);
-updateTabCounts(initialDiary.length, initialWatchlist.length);
-
 // ── Configuración de vistas ─────────────────────────────────────────────────
 
 // Vista "Ya vi"
@@ -90,6 +83,13 @@ initWatchlistView({
     removeFromWatchlist(key);
   }
 });
+
+// Render inicial después de conectar las vistas al DOM.
+const initialDiary = getDiary();
+const initialWatchlist = getWatchlist();
+renderDiary(initialDiary);
+renderWatchlist(initialWatchlist);
+updateTabCounts(initialDiary.length, initialWatchlist.length);
 
 // Vista de Búsqueda
 initSearchView({

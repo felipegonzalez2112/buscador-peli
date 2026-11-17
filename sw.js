@@ -1,4 +1,4 @@
-const CACHE = 'cine-ar-shell-v9';
+const CACHE = 'cine-ar-shell-v10';
 const SHELL = [
   './',
   './index.html',

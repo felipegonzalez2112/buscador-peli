@@ -74,6 +74,7 @@ export function openSettings(message) {
  * @returns {string}
  */
 function renderMovieCard(movie) {
+  const title = escapeHTML(movie.title || movie.name || (movie.mediaType === 'tv' ? 'Serie sin título' : 'Película sin título'));
   const providersMarkup = movie.region?.providerError
     ? `<span class="empty-providers">${escapeHTML(movie.region.providerError)}</span>`
     : providerList(movie.region, movie.title || movie.name || '');
@@ -81,7 +82,6 @@ function renderMovieCard(movie) {
   const poster = movie.poster_path
     ? `<img class="poster" src="https://image.tmdb.org/t/p/w185${movie.poster_path}" alt="Póster de ${title}" loading="lazy">`
     : '<div class="poster poster-empty" aria-hidden="true"></div>';
-  const title = escapeHTML(movie.title || movie.name || (movie.mediaType === 'tv' ? 'Serie sin título' : 'Película sin título'));
   const date = movie.release_date || movie.first_air_date;
   const year = date ? date.slice(0, 4) : 'Año desconocido';
   const mediaLabel = movie.mediaType === 'tv' ? 'Serie' : 'Película';
