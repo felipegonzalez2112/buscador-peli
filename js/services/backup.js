@@ -103,17 +103,19 @@ export function mergeEntries(existing, incoming, keyFunction) {
 }
 
 /**
- * Genera y descarga un archivo JSON con el respaldo de Ya vi y Quiero ver.
+ * Genera y descarga un archivo JSON con el respaldo de Ya vi, Quiero ver y tus plataformas.
  * @param {Array<object>} diaryEntries
  * @param {Array<object>} watchlistEntries
+ * @param {Array<string>} [myServices=[]]
  */
-export function exportBackup(diaryEntries, watchlistEntries) {
+export function exportBackup(diaryEntries, watchlistEntries, myServices = []) {
   const backup = {
     format: 'cine-ar-backup',
     version: 1,
     exportedAt: new Date().toISOString(),
     diary: diaryEntries,
-    watchlist: watchlistEntries
+    watchlist: watchlistEntries,
+    myServices: Array.isArray(myServices) ? myServices : []
   };
 
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -183,10 +185,14 @@ export async function processBackupFile(file, currentDiary, currentWatchlist) {
 
   const mergedDiary = mergeEntries(currentDiary, diaryToImport, diaryKey);
   const mergedWatchlist = mergeEntries(currentWatchlist, watchlistToImport, watchlistKey);
+  const importedServices = Array.isArray(backup.myServices)
+    ? backup.myServices.filter(service => typeof service === 'string')
+    : null;
 
   return {
     mergedDiary,
     mergedWatchlist,
+    importedServices,
     importedCount: {
       diary: importedDiary.length,
       watchlist: importedWatchlist.length

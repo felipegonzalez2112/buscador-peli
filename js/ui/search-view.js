@@ -3,8 +3,8 @@
  */
 
 import { escapeHTML } from '../utils/formatters.js';
-import { hasAvailability, providerList } from '../services/providers.js';
-import { diaryKey, watchlistKey } from '../services/storage.js';
+import { hasAvailability, providerList, getMatchingUserServices } from '../services/providers.js';
+import { diaryKey, watchlistKey, getMyServices } from '../services/storage.js';
 
 let form = null;
 let queryInput = null;
@@ -23,6 +23,7 @@ let sortOrder = null;
 let currentMovies = [];
 let currentDiary = [];
 let currentWatchlist = [];
+let currentUserServices = [];
 
 let onSearchCallback = null;
 let onWatchClickCallback = null;
@@ -75,9 +76,16 @@ export function openSettings(message) {
  */
 function renderMovieCard(movie) {
   const title = escapeHTML(movie.title || movie.name || (movie.mediaType === 'tv' ? 'Serie sin título' : 'Película sin título'));
+  const userServices = currentUserServices?.length ? currentUserServices : getMyServices();
+  const matching = getMatchingUserServices(movie.region, userServices);
+
+  const badgeMarkup = matching.length > 0
+    ? `<span class="user-service-badge" title="Disponible en ${escapeHTML(matching.join(', '))}"><span class="badge-icon" aria-hidden="true">✨</span> En tus servicios: ${escapeHTML(matching.join(', '))}</span>`
+    : '';
+
   const providersMarkup = movie.region?.providerError
     ? `<span class="empty-providers">${escapeHTML(movie.region.providerError)}</span>`
-    : providerList(movie.region, movie.title || movie.name || '');
+    : providerList(movie.region, movie.title || movie.name || '', userServices);
 
   const poster = movie.poster_path
     ? `<img class="poster" src="https://image.tmdb.org/t/p/w185${movie.poster_path}" alt="Póster de ${title}" loading="lazy">`
@@ -93,7 +101,10 @@ function renderMovieCard(movie) {
     <article class="movie" data-movie-id="${movie.id}" data-movie-type="${movie.mediaType}">
       ${poster}
       <div class="movie-info">
-        <h2 class="movie-title">${title}</h2>
+        <div class="movie-header">
+          <h2 class="movie-title">${title}</h2>
+          ${badgeMarkup}
+        </div>
         <div class="year">${mediaLabel} · ${year}</div>
         <p class="overview">${escapeHTML(movie.overview || 'Todavía no hay sinopsis disponible.')}</p>
         <div class="providers-label">Dónde verla · tocá para copiar el título y abrir la app si tu dispositivo la reconoce</div>
@@ -125,7 +136,22 @@ export function updateResults() {
 
   const filter = availabilityFilter.value;
   const order = sortOrder.value;
-  const filtered = currentMovies.filter(movie => hasAvailability(movie, filter));
+  const userServices = currentUserServices?.length ? currentUserServices : getMyServices();
+
+  if (filter === 'my-services' && userServices.length === 0) {
+    results.innerHTML = `
+      <div class="empty-state-notice">
+        <p>Todavía no seleccionaste tus plataformas de streaming.</p>
+        <button class="diary-action open-services-config" type="button">Configurar mis servicios</button>
+      </div>
+    `;
+    if (resultCount) {
+      resultCount.textContent = '0 resultados';
+    }
+    return;
+  }
+
+  const filtered = currentMovies.filter(movie => hasAvailability(movie, filter, userServices));
 
   if (order === 'year-desc') {
     filtered.sort((a, b) => (b.release_date || b.first_air_date || '').localeCompare(a.release_date || a.first_air_date || ''));
@@ -145,7 +171,10 @@ export function updateResults() {
   }
 
   if (!filtered.length) {
-    results.innerHTML = '<p class="empty-providers">No hay títulos con ese tipo de disponibilidad en Argentina.</p>';
+    const emptyMsg = filter === 'my-services'
+      ? 'Ninguno de estos títulos está disponible en tus plataformas de streaming.'
+      : 'No hay títulos con ese tipo de disponibilidad en Argentina.';
+    results.innerHTML = `<p class="empty-providers">${emptyMsg}</p>`;
   }
 }
 
@@ -154,10 +183,20 @@ export function updateResults() {
  * @param {Array<object>} movies
  * @param {Array<object>} diary
  * @param {Array<object>} watchlist
+ * @param {Array<string>} [myServices]
  */
-export function setResults(movies, diary = currentDiary, watchlist = currentWatchlist) {
+export function setResults(movies, diary = currentDiary, watchlist = currentWatchlist, myServices = currentUserServices) {
   currentMovies = movies;
   currentDiary = diary;
+  currentWatchlist = watchlist;
+  currentUserServices = myServices || getMyServices();
+
+  if (resultTools) {
+    resultTools.hidden = !movies.length;
+  }
+
+  updateResults();
+}
   currentWatchlist = watchlist;
 
   if (resultTools) {
@@ -233,6 +272,12 @@ export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onDe
     results.addEventListener('click', event => {
       // Si hizo clic en un proveedor de streaming, dejamos que la delegación global actúe
       if (event.target.closest('[data-provider-title]')) return;
+
+      const openServicesBtn = event.target.closest('.open-services-config');
+      if (openServicesBtn) {
+        openSettings();
+        return;
+      }
 
       const watchlistButton = event.target.closest('[data-watchlist-id]');
       if (watchlistButton) {

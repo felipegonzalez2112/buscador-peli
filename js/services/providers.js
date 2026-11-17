@@ -12,6 +12,25 @@ export const PROVIDER_GROUPS = [
   { key: 'buy', label: 'Compra' }
 ];
 
+/**
+ * Catálogo de plataformas de streaming populares en Argentina para selección rápida.
+ */
+export const POPULAR_SERVICES = [
+  { id: 'netflix', name: 'Netflix', tmdbIds: [8] },
+  { id: 'max', name: 'Max', tmdbIds: [189] },
+  { id: 'disney', name: 'Disney+', tmdbIds: [337, 619] },
+  { id: 'prime', name: 'Prime Video', tmdbIds: [9] },
+  { id: 'flow', name: 'Flow', tmdbIds: [230] },
+  { id: 'paramount', name: 'Paramount+', tmdbIds: [531] },
+  { id: 'apple', name: 'Apple TV+', tmdbIds: [2, 350] },
+  { id: 'cinear', name: 'Cine.ar Play', tmdbIds: [195] },
+  { id: 'mubi', name: 'MUBI', tmdbIds: [11] },
+  { id: 'crunchyroll', name: 'Crunchyroll', tmdbIds: [283] },
+  { id: 'movistar', name: 'Movistar TV', tmdbIds: [339] },
+  { id: 'claro', name: 'Claro Video', tmdbIds: [167] },
+  { id: 'pluto', name: 'Pluto TV', tmdbIds: [300] }
+];
+
 const PROVIDER_HOMES_BY_ID = {
   2: 'https://tv.apple.com/',
   3: 'https://www.youtube.com/',
@@ -78,13 +97,88 @@ export function providerAppUrl(provider) {
 }
 
 /**
- * Determina si una película o serie cumple con el filtro de disponibilidad.
- * @param {object} movie
- * @param {'all'|'streaming'|'rent'|'buy'} filter
+ * Comprueba si un proveedor de streaming coincide con los servicios activos del usuario.
+ * @param {object} provider
+ * @param {Array<string>} userServices
  * @returns {boolean}
  */
-export function hasAvailability(movie, filter) {
+export function matchesUserService(provider, userServices = []) {
+  if (!provider || !userServices?.length) return false;
+  const pId = Number(provider.provider_id);
+  const pName = (provider.provider_name || '').toLowerCase();
+
+  return userServices.some(serviceSlug => {
+    const service = POPULAR_SERVICES.find(s => s.id === serviceSlug);
+    if (!service) return false;
+    if (service.tmdbIds.includes(pId)) return true;
+    return pName.includes(service.name.toLowerCase());
+  });
+}
+
+/**
+ * Extrae todos los proveedores de streaming (suscripción, gratis, anuncios) desde una región o un snapshot.
+ * @param {object|Array} source
+ * @returns {Array<object>}
+ */
+export function getStreamingProviders(source) {
+  if (!source) return [];
+  if (Array.isArray(source)) {
+    const allowedLabels = new Set(['Streaming', 'Gratis', 'Con anuncios']);
+    return source
+      .filter(group => allowedLabels.has(group.label) && Array.isArray(group.providers))
+      .flatMap(group => group.providers);
+  }
+  const streamingKeys = ['flatrate', 'free', 'ads'];
+  return streamingKeys.flatMap(key => source[key] || []);
+}
+
+/**
+ * Obtiene los nombres de los servicios del usuario en los que está disponible el contenido.
+ * @param {object|Array} source
+ * @param {Array<string>} userServices
+ * @returns {Array<string>}
+ */
+export function getMatchingUserServices(source, userServices = []) {
+  if (!userServices?.length) return [];
+  const providers = getStreamingProviders(source);
+  const matched = new Set();
+
+  for (const provider of providers) {
+    for (const serviceSlug of userServices) {
+      const service = POPULAR_SERVICES.find(s => s.id === serviceSlug);
+      if (service && matchesUserService(provider, [serviceSlug])) {
+        matched.add(service.name);
+      }
+    }
+  }
+
+  return [...matched];
+}
+
+/**
+ * Indica si un título está disponible en alguna de las plataformas contratadas por el usuario.
+ * @param {object} movie
+ * @param {Array<string>} userServices
+ * @returns {boolean}
+ */
+export function isAvailableInUserServices(movie, userServices = []) {
+  if (!userServices?.length) return false;
+  const source = movie?.region || movie?.providers;
+  return getMatchingUserServices(source, userServices).length > 0;
+}
+
+/**
+ * Determina si una película o serie cumple con el filtro de disponibilidad.
+ * @param {object} movie
+ * @param {'all'|'my-services'|'streaming'|'rent'|'buy'} filter
+ * @param {Array<string>} [userServices=[]]
+ * @returns {boolean}
+ */
+export function hasAvailability(movie, filter, userServices = []) {
   if (filter === 'all') return true;
+  if (filter === 'my-services') {
+    return isAvailableInUserServices(movie, userServices);
+  }
   if (!movie?.region) return false;
   if (filter === 'streaming') {
     return ['flatrate', 'free', 'ads'].some(key => Boolean(movie.region[key]?.length));
@@ -115,9 +209,11 @@ export function providerSnapshot(region = {}) {
  * Genera el markup HTML para un enlace a proveedor con soporte para copiar el título.
  * @param {object} provider
  * @param {string} title
+ * @param {Array<string>} [userServices=[]]
  * @returns {string}
  */
-export function providerLinkMarkup(provider, title) {
+export function providerLinkMarkup(provider, title, userServices = []) {
+  const isUserService = matchesUserService(provider, userServices);
   const appUrl = providerAppUrl(provider);
   const actionLabel = appUrl
     ? `Copiar ${title} y abrir ${provider.provider_name}`
@@ -127,17 +223,19 @@ export function providerLinkMarkup(provider, title) {
   const logo = provider.logo_path
     ? `<img src="https://image.tmdb.org/t/p/w92${escapeHTML(provider.logo_path)}" alt="" loading="lazy">`
     : '';
+  const serviceClass = isUserService ? ' is-user-service' : '';
 
-  return `<a class="provider" ${hrefAttr} data-provider-title="${escapeHTML(title)}" data-provider-name="${escapeHTML(provider.provider_name)}" aria-label="${escapeHTML(actionLabel)}">${logo}${escapeHTML(provider.provider_name)}</a>`;
+  return `<a class="provider${serviceClass}" ${hrefAttr} data-provider-title="${escapeHTML(title)}" data-provider-name="${escapeHTML(provider.provider_name)}" aria-label="${escapeHTML(actionLabel)}">${logo}${escapeHTML(provider.provider_name)}</a>`;
 }
 
 /**
  * Renderiza la lista de plataformas guardadas para los items de la colección.
  * @param {Array|null} groups
  * @param {string} title
+ * @param {Array<string>} [userServices=[]]
  * @returns {string}
  */
-export function savedProviderList(groups, title) {
+export function savedProviderList(groups, title, userServices = []) {
   if (!Array.isArray(groups)) {
     return '<div class="saved-platforms-empty">Plataformas no guardadas. Volvé a buscar este título para actualizarlas.</div>';
   }
@@ -147,7 +245,7 @@ export function savedProviderList(groups, title) {
   return `<div class="saved-platform-groups">${groups.map(group => `
     <div class="saved-platform-group">
       <span>${escapeHTML(group.label)}</span>
-      <div class="providers">${group.providers.map(provider => providerLinkMarkup(provider, title)).join('')}</div>
+      <div class="providers">${group.providers.map(provider => providerLinkMarkup(provider, title, userServices)).join('')}</div>
     </div>
   `).join('')}</div>`;
 }
@@ -156,14 +254,15 @@ export function savedProviderList(groups, title) {
  * Renderiza la disponibilidad actual consultada a TMDb para la vista de búsqueda.
  * @param {object} region
  * @param {string} title
+ * @param {Array<string>} [userServices=[]]
  * @returns {string}
  */
-export function providerList(region = {}, title) {
+export function providerList(region = {}, title, userServices = []) {
   const seen = new Set();
   const groupsMarkup = PROVIDER_GROUPS.map(group => {
     const providers = (region[group.key] || []).filter(provider => !seen.has(provider.provider_id) && seen.add(provider.provider_id));
     if (!providers.length) return '';
-    return `<div class="provider-group"><div class="availability-type">${group.label}</div><div class="providers">${providers.map(p => providerLinkMarkup(p, title)).join('')}</div></div>`;
+    return `<div class="provider-group"><div class="availability-type">${group.label}</div><div class="providers">${providers.map(p => providerLinkMarkup(p, title, userServices)).join('')}</div></div>`;
   }).join('');
 
   return groupsMarkup || '<span class="empty-providers">Sin disponibilidad informada en Argentina.</span>';

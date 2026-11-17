@@ -4,9 +4,9 @@
  */
 
 import { escapeHTML } from '../utils/formatters.js';
-import { providerList } from '../services/providers.js';
+import { providerList, getMatchingUserServices } from '../services/providers.js';
 import { getMediaDetails } from '../api/tmdb.js';
-import { diaryKey, watchlistKey } from '../services/storage.js';
+import { diaryKey, watchlistKey, getMyServices } from '../services/storage.js';
 
 let dialog = null;
 let currentMovie = null;
@@ -112,10 +112,16 @@ function renderDetail(details, movie, diary, watchlist) {
     : '';
 
   // Proveedores (desde los datos ya cargados en la búsqueda)
+  const userServices = getMyServices();
+  const matching = getMatchingUserServices(movie.region, userServices);
+  const badgeMarkup = matching.length > 0
+    ? `<span class="user-service-badge" title="Disponible en ${escapeHTML(matching.join(', '))}"><span class="badge-icon" aria-hidden="true">✨</span> En tus servicios: ${escapeHTML(matching.join(', '))}</span>`
+    : '';
+
   const rawTitle = details.title || details.name || '';
   const providersMarkup = movie.region?.providerError
     ? `<span class="empty-providers">${escapeHTML(movie.region.providerError)}</span>`
-    : providerList(movie.region, rawTitle);
+    : providerList(movie.region, rawTitle, userServices);
 
   // Estado de colección
   const isWatched = diary.some(e => diaryKey(e) === diaryKey(movie));
@@ -128,6 +134,7 @@ function renderDetail(details, movie, diary, watchlist) {
         ${poster}
         <div class="detail-meta">
           <h2>${title}</h2>
+          ${badgeMarkup}
           <div class="detail-subtitle">${subtitle}</div>
           ${genres ? `<div class="detail-genres">${genres}</div>` : ''}
           ${tmdbRating ? `<div class="detail-rating">${tmdbRating}</div>` : ''}

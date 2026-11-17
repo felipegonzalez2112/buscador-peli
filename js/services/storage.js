@@ -8,9 +8,11 @@ import { providerSnapshot } from './providers.js';
 const DIARY_KEY = 'cinear_diary';
 const WATCHLIST_KEY = 'cinear_watchlist';
 const TOKEN_KEY = 'cinear_tmdb_token';
+const MY_SERVICES_KEY = 'cinear_my_services';
 
 let diaryEntries = readFromStorage(DIARY_KEY);
 let watchlistEntries = readFromStorage(WATCHLIST_KEY);
+let userServices = readServicesFromStorage();
 const subscribers = new Set();
 
 /**
@@ -28,12 +30,26 @@ function readFromStorage(key) {
 }
 
 /**
- * Notifica a todos los suscriptores cuando cambian los datos de la colección.
+ * Lee los servicios de streaming configurados por el usuario.
+ * @returns {Array<string>}
+ */
+function readServicesFromStorage() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MY_SERVICES_KEY) || '[]');
+    return Array.isArray(saved) ? saved.filter(s => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Notifica a todos los suscriptores cuando cambian los datos de la colección o configuración.
  */
 function notifySubscribers() {
   const state = {
     diary: [...diaryEntries],
-    watchlist: [...watchlistEntries]
+    watchlist: [...watchlistEntries],
+    myServices: [...userServices]
   };
   subscribers.forEach(callback => {
     try {
@@ -109,6 +125,44 @@ export function setWatchlist(entries) {
     console.error('Error al guardar la watchlist:', error);
   }
   notifySubscribers();
+}
+
+/**
+ * Retorna los servicios de streaming configurados por el usuario.
+ * @returns {Array<string>}
+ */
+export function getMyServices() {
+  return [...userServices];
+}
+
+/**
+ * Guarda y actualiza la lista de servicios de streaming del usuario.
+ * @param {Array<string>} services
+ */
+export function setMyServices(services) {
+  userServices = Array.isArray(services)
+    ? [...new Set(services.filter(s => typeof s === 'string'))]
+    : [];
+  try {
+    localStorage.setItem(MY_SERVICES_KEY, JSON.stringify(userServices));
+  } catch (error) {
+    console.error('Error al guardar mis servicios:', error);
+  }
+  notifySubscribers();
+}
+
+/**
+ * Activa o desactiva un servicio de streaming para el usuario.
+ * @param {string} serviceId
+ * @returns {boolean} True si quedó activo, false si fue removido
+ */
+export function toggleMyService(serviceId) {
+  const exists = userServices.includes(serviceId);
+  const updated = exists
+    ? userServices.filter(id => id !== serviceId)
+    : [...userServices, serviceId];
+  setMyServices(updated);
+  return !exists;
 }
 
 /**

@@ -11,6 +11,7 @@ import { initDiaryDialog, openDiaryDialog } from './js/ui/diary-dialog.js';
 import { initDetailDialog, openDetailDialog } from './js/ui/detail-dialog.js';
 import { initDiaryView, renderDiary } from './js/ui/diary-view.js';
 import { initWatchlistView, renderWatchlist } from './js/ui/watchlist-view.js';
+import { initServicesSelector, renderServicesSelector } from './js/ui/services-selector.js';
 import {
   initSearchView,
   setSearching,
@@ -20,9 +21,13 @@ import {
   getCurrentMovies
 } from './js/ui/search-view.js';
 import { searchMedia, loadMovieWithProviders } from './js/api/tmdb.js';
+import { POPULAR_SERVICES } from './js/services/providers.js';
 import {
   getDiary,
   getWatchlist,
+  getMyServices,
+  setMyServices,
+  toggleMyService,
   upsertDiary,
   deleteFromDiary,
   toggleWatchlist,
@@ -42,6 +47,15 @@ import { exportBackup, processBackupFile } from './js/services/backup.js';
 initTheme();
 initTabs();
 initDiaryDialog();
+initServicesSelector({
+  initialServices: getMyServices(),
+  onToggle: serviceId => {
+    const added = toggleMyService(serviceId);
+    const service = POPULAR_SERVICES.find(s => s.id === serviceId);
+    const name = service ? service.name : serviceId;
+    showFeedback(added ? `${name} agregada a tus servicios.` : `${name} removida de tus servicios.`);
+  }
+});
 initDetailDialog({
   onWatch: movie => {
     const existing = getDiary().find(entry => diaryKey(entry) === diaryKey(movie));
@@ -56,11 +70,12 @@ initDetailDialog({
 
 // ── Sincronización reactiva del almacenamiento ──────────────────────────────
 
-subscribe(({ diary, watchlist }) => {
+subscribe(({ diary, watchlist, myServices }) => {
   renderDiary(diary);
-  renderWatchlist(watchlist);
+  renderWatchlist(watchlist, myServices);
   updateTabCounts(diary.length, watchlist.length);
-  setResults(getCurrentMovies(), diary, watchlist);
+  renderServicesSelector(myServices);
+  setResults(getCurrentMovies(), diary, watchlist, myServices);
 });
 
 // ── Configuración de vistas ─────────────────────────────────────────────────
@@ -87,8 +102,10 @@ initWatchlistView({
 // Render inicial después de conectar las vistas al DOM.
 const initialDiary = getDiary();
 const initialWatchlist = getWatchlist();
+const initialServices = getMyServices();
 renderDiary(initialDiary);
-renderWatchlist(initialWatchlist);
+renderWatchlist(initialWatchlist, initialServices);
+renderServicesSelector(initialServices);
 updateTabCounts(initialDiary.length, initialWatchlist.length);
 
 // Vista de Búsqueda
@@ -139,7 +156,7 @@ initSearchView({
       );
 
       refreshSavedProviders(loadedMovies);
-      setResults(loadedMovies, getDiary(), getWatchlist());
+      setResults(loadedMovies, getDiary(), getWatchlist(), getMyServices());
     } catch (error) {
       setStatus(error.message || 'No se pudo conectar con TMDb. Revisá tu conexión.');
     } finally {
@@ -169,8 +186,8 @@ document.addEventListener('click', event => {
 const exportButton = document.querySelector('#export-backup');
 if (exportButton) {
   exportButton.addEventListener('click', () => {
-    exportBackup(getDiary(), getWatchlist());
-    showFeedback('Respaldo de Ya vi y Quiero ver descargado.');
+    exportBackup(getDiary(), getWatchlist(), getMyServices());
+    showFeedback('Respaldo de Ya vi, Quiero ver y tus plataformas descargado.');
   });
 }
 
@@ -191,6 +208,9 @@ if (importButton && importFileInput) {
       if (result) {
         setDiary(result.mergedDiary);
         setWatchlist(result.mergedWatchlist);
+        if (result.importedServices && result.importedServices.length) {
+          setMyServices(result.importedServices);
+        }
         showFeedback(
           `Respaldo importado: ${result.importedCount.diary} vistos y ${result.importedCount.watchlist} pendientes.`
         );
