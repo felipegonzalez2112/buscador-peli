@@ -197,7 +197,22 @@ export function initDiaryView({ onEdit, onDelete }) {
       const editButton = event.target.closest('[data-diary-edit]');
 
       if (deleteButton && typeof onDeleteCallback === 'function') {
-        onDeleteCallback(deleteButton.dataset.diaryDelete);
+        if (deleteButton.dataset.confirmPending) {
+          clearTimeout(Number(deleteButton.dataset.confirmTimer));
+          onDeleteCallback(deleteButton.dataset.diaryDelete);
+        } else {
+          deleteButton.dataset.confirmPending = 'true';
+          deleteButton.textContent = '¿Seguro?';
+          deleteButton.classList.add('confirm-pending');
+          const timerId = setTimeout(() => {
+            if (deleteButton.isConnected) {
+              delete deleteButton.dataset.confirmPending;
+              deleteButton.textContent = 'Eliminar';
+              deleteButton.classList.remove('confirm-pending');
+            }
+          }, 3000);
+          deleteButton.dataset.confirmTimer = String(timerId);
+        }
       } else if (editButton && typeof onEditCallback === 'function') {
         const key = editButton.dataset.diaryEdit;
         const entry = currentDiaryEntries.find(item => diaryKey(item) === key);

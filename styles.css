@@ -162,6 +162,8 @@
     html[data-theme="light"] .saved-platforms-empty { color:#776e69; }
     html[data-theme="light"] .diary-action { color:#5e5652; border-color:#d8d0cb; }
     html[data-theme="light"] .diary-action:hover { color:#2d2724; border-color:#9d8575; }
+    html[data-theme="light"] .diary-action.confirm-pending { color:#d94040; border-color:#d94040; }
+    html[data-theme="light"] .diary-action.confirm-pending:hover { color:#c02020; border-color:#c02020; }
     html[data-theme="light"] .backup-hint { color:#786e69; }
     html[data-theme="light"] .action-feedback { color:#34271c; border-color:#d7b28e; background:#fffaf5f5; box-shadow:0 12px 36px #4d321a25; }
     html[data-theme="light"] .diary-dialog { color:#2d2724; border-color:#d8cec7; background:#fff; box-shadow:0 28px 90px #34271c35; }
@@ -238,6 +240,9 @@
     .diary-actions { display:flex; gap:6px; }
     .diary-action { color:#aaa; background:transparent; border:1px solid #403a3d; border-radius:8px; padding:7px 9px; font-size:.75rem; }
     .diary-action:hover { color:#fff; border-color:#81716b; }
+    .diary-action.confirm-pending { color:#ff6b6b; border-color:#ff6b6b; animation:confirm-pulse .3s ease; }
+    .diary-action.confirm-pending:hover { color:#ff4747; border-color:#ff4747; }
+    @keyframes confirm-pulse { 0% { transform:scale(1); } 50% { transform:scale(1.08); } 100% { transform:scale(1); } }
     .backup-tools { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin:-3px 0 12px; }
     .backup-hint { width:100%; margin:0; color:#817b7a; font-size:.7rem; text-align:right; }
     .action-feedback { position:fixed; z-index:10; inset:auto 16px calc(18px + env(safe-area-inset-bottom)); width:max-content; max-width:calc(100% - 32px); margin:auto; padding:12px 16px; border:1px solid #655044; border-radius:12px; color:#fff4e8; background:#29231ff2; box-shadow:0 12px 36px #0008; text-align:center; font-size:.86rem; }
