@@ -28,6 +28,7 @@ let onSearchCallback = null;
 let onWatchClickCallback = null;
 let onToggleWatchlistCallback = null;
 let onSaveTokenCallback = null;
+let onDetailClickCallback = null;
 
 /**
  * Retorna las películas cargadas actualmente en los resultados de búsqueda.
@@ -77,7 +78,9 @@ function renderMovieCard(movie) {
     ? `<span class="empty-providers">${escapeHTML(movie.region.providerError)}</span>`
     : providerList(movie.region, movie.title || movie.name || '');
 
-  const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w185${movie.poster_path}` : '';
+  const poster = movie.poster_path
+    ? `<img class="poster" src="https://image.tmdb.org/t/p/w185${movie.poster_path}" alt="Póster de ${title}" loading="lazy">`
+    : '<div class="poster poster-empty" aria-hidden="true"></div>';
   const title = escapeHTML(movie.title || movie.name || (movie.mediaType === 'tv' ? 'Serie sin título' : 'Película sin título'));
   const date = movie.release_date || movie.first_air_date;
   const year = date ? date.slice(0, 4) : 'Año desconocido';
@@ -87,10 +90,10 @@ function renderMovieCard(movie) {
   const isOnWatchlist = currentWatchlist.some(entry => watchlistKey(entry) === watchlistKey(movie));
 
   return `
-    <article class="movie">
-      <img class="poster" src="${poster}" alt="Póster de ${title}" loading="lazy">
+    <article class="movie" data-movie-id="${movie.id}" data-movie-type="${movie.mediaType}">
+      ${poster}
       <div class="movie-info">
-        <h2>${title}</h2>
+        <h2 class="movie-title">${title}</h2>
         <div class="year">${mediaLabel} · ${year}</div>
         <p class="overview">${escapeHTML(movie.overview || 'Todavía no hay sinopsis disponible.')}</p>
         <div class="providers-label">Dónde verla · tocá para copiar el título y abrir la app si tu dispositivo la reconoce</div>
@@ -170,10 +173,11 @@ export function setResults(movies, diary = currentDiary, watchlist = currentWatc
  * @param {(query: string, type: 'both'|'movie'|'tv') => void} options.onSearch
  * @param {(movie: object) => void} options.onWatchClick
  * @param {(movie: object) => void} options.onToggleWatchlist
+ * @param {(movie: object) => void} [options.onDetailClick]
  * @param {(token: string) => void} options.onSaveToken
  * @param {string} options.initialToken
  */
-export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onSaveToken, initialToken }) {
+export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onDetailClick, onSaveToken, initialToken }) {
   form = document.querySelector('#search-form');
   queryInput = document.querySelector('#query');
   mediaType = document.querySelector('#media-type');
@@ -191,6 +195,7 @@ export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onSa
   onSearchCallback = onSearch;
   onWatchClickCallback = onWatchClick;
   onToggleWatchlistCallback = onToggleWatchlist;
+  onDetailClickCallback = onDetailClick;
   onSaveTokenCallback = onSaveToken;
 
   if (keyInput && initialToken) {
@@ -226,6 +231,9 @@ export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onSa
 
   if (results) {
     results.addEventListener('click', event => {
+      // Si hizo clic en un proveedor de streaming, dejamos que la delegación global actúe
+      if (event.target.closest('[data-provider-title]')) return;
+
       const watchlistButton = event.target.closest('[data-watchlist-id]');
       if (watchlistButton) {
         const id = watchlistButton.dataset.watchlistId;
@@ -244,6 +252,18 @@ export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onSa
         const movie = currentMovies.find(m => String(m.id) === id && m.mediaType === type);
         if (movie && typeof onWatchClickCallback === 'function') {
           onWatchClickCallback(movie);
+        }
+        return;
+      }
+
+      // Clic en la tarjeta, póster o título para abrir el detalle expandido
+      const card = event.target.closest('.movie');
+      if (card && typeof onDetailClickCallback === 'function') {
+        const id = card.dataset.movieId;
+        const type = card.dataset.movieType;
+        const movie = currentMovies.find(m => String(m.id) === id && m.mediaType === type);
+        if (movie) {
+          onDetailClickCallback(movie);
         }
       }
     });

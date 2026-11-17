@@ -8,6 +8,7 @@ import { initTabs, updateTabCounts } from './js/ui/tabs.js';
 import { showFeedback } from './js/ui/feedback.js';
 import { copyMovieTitle } from './js/utils/clipboard.js';
 import { initDiaryDialog, openDiaryDialog } from './js/ui/diary-dialog.js';
+import { initDetailDialog, openDetailDialog } from './js/ui/detail-dialog.js';
 import { initDiaryView, renderDiary } from './js/ui/diary-view.js';
 import { initWatchlistView, renderWatchlist } from './js/ui/watchlist-view.js';
 import {
@@ -41,6 +42,17 @@ import { exportBackup, processBackupFile } from './js/services/backup.js';
 initTheme();
 initTabs();
 initDiaryDialog();
+initDetailDialog({
+  onWatch: movie => {
+    const existing = getDiary().find(entry => diaryKey(entry) === diaryKey(movie));
+    openDiaryDialog(movie, existing, (item, rating, tags) => {
+      upsertDiary(item, rating, tags);
+    });
+  },
+  onWatchlist: movie => {
+    toggleWatchlist(movie);
+  }
+});
 
 // ── Sincronización reactiva del almacenamiento ──────────────────────────────
 
@@ -84,6 +96,14 @@ initSearchView({
   initialToken: getTmdbToken(),
   onSaveToken: token => {
     setTmdbToken(token);
+  },
+  onDetailClick: movie => {
+    const token = getTmdbToken();
+    if (!token) {
+      openSettings('Agregá tu token gratuito de TMDb para ver los detalles.');
+      return;
+    }
+    openDetailDialog(movie, token, getDiary(), getWatchlist());
   },
   onWatchClick: movie => {
     const existing = getDiary().find(entry => diaryKey(entry) === diaryKey(movie));

@@ -67,6 +67,21 @@ export async function searchMedia({ query, type = 'both', token, limit = 8 }) {
 }
 
 /**
+ * Obtiene los detalles completos de una película o serie, incluyendo créditos y videos.
+ * @param {number|string} id
+ * @param {'movie'|'tv'} mediaType
+ * @param {string} token
+ * @returns {Promise<object>}
+ */
+export async function getMediaDetails(id, mediaType, token) {
+  const type = mediaType === 'tv' ? 'tv' : 'movie';
+  return fetchFromTmdb(
+    `/${type}/${id}?language=es-AR&append_to_response=credits,videos`,
+    token
+  );
+}
+
+/**
  * Carga los proveedores de disponibilidad para una película o serie.
  * @param {object} movie
  * @param {string} token

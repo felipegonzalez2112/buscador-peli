@@ -1,4 +1,4 @@
-const CACHE = 'cine-ar-shell-v8';
+const CACHE = 'cine-ar-shell-v9';
 const SHELL = [
   './',
   './index.html',
@@ -22,7 +22,8 @@ const SHELL = [
   './js/ui/diary-dialog.js',
   './js/ui/diary-view.js',
   './js/ui/watchlist-view.js',
-  './js/ui/search-view.js'
+  './js/ui/search-view.js',
+  './js/ui/detail-dialog.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
