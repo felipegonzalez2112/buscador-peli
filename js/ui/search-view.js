@@ -7,11 +7,8 @@ import { hasAvailability, providerList, getMatchingUserServices } from '../servi
 import { diaryKey, watchlistKey, getMyServices } from '../services/storage.js';
 
 let form = null;
-let queryInput = null;
-let mediaType = null;
 let statusElement = null;
 let results = null;
-let searchButton = null;
 let keyInput = null;
 let settings = null;
 let saveKeyButton = null;
@@ -44,9 +41,10 @@ export function getCurrentMovies() {
  * @param {boolean} isSearching
  */
 export function setSearching(isSearching) {
-  if (!searchButton) return;
-  searchButton.disabled = isSearching;
-  searchButton.textContent = isSearching ? 'Buscando…' : 'Buscar';
+  const submitButton = form?.querySelector('button[type="submit"]');
+  if (!submitButton) return;
+  submitButton.disabled = isSearching;
+  submitButton.textContent = isSearching ? 'Buscando…' : 'Buscar';
 }
 
 /**
@@ -210,11 +208,8 @@ export function setResults(movies, diary = currentDiary, watchlist = currentWatc
  */
 export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onDetailClick, onSaveToken, initialToken }) {
   form = document.querySelector('#search-form');
-  queryInput = document.querySelector('#query');
-  mediaType = document.querySelector('#media-type');
   statusElement = document.querySelector('#status');
   results = document.querySelector('#results');
-  searchButton = document.querySelector('#search-button');
   keyInput = document.querySelector('#api-key');
   settings = document.querySelector('#settings');
   saveKeyButton = document.querySelector('#save-key');
@@ -250,8 +245,9 @@ export function initSearchView({ onSearch, onWatchClick, onToggleWatchlist, onDe
   if (form) {
     form.addEventListener('submit', event => {
       event.preventDefault();
-      const query = queryInput?.value.trim();
-      const type = mediaType?.value || 'both';
+      const formData = new FormData(form);
+      const query = (formData.get('query') || '').trim();
+      const type = formData.get('type') || 'both';
       if (!query) return;
 
       if (typeof onSearchCallback === 'function') {

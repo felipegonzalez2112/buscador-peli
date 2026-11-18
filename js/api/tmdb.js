@@ -35,7 +35,31 @@ export async function fetchFromTmdb(path, token) {
 }
 
 /**
+ * Retorna la fecha actual en formato YYYY-MM-DD según la zona horaria local.
+ * @returns {string}
+ */
+export function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Comprueba si un título ya fue estrenado (excluye estrenos futuros o fechas no confirmadas).
+ * @param {object} item
+ * @param {string} [today]
+ * @returns {boolean}
+ */
+export function isReleased(item, today = getTodayDateString()) {
+  const date = item.release_date || item.first_air_date;
+  return Boolean(date && date <= today);
+}
+
+/**
  * Busca películas, series o ambos en TMDb.
+ * Filtra automáticamente producciones que aún no han sido estrenadas.
  * @param {object} options
  * @param {string} options.query
  * @param {'both'|'movie'|'tv'} options.type
@@ -56,9 +80,17 @@ export async function searchMedia({ query, type = 'both', token, limit = 8 }) {
 
   const data = await fetchFromTmdb(`/search/${endpoint}?${searchParams.toString()}`, token);
   const results = data.results || [];
+  const today = getTodayDateString();
 
   return results
-    .filter(item => type !== 'both' || item.media_type === 'movie' || item.media_type === 'tv')
+    .filter(item => {
+      // Filtrar tipos en búsqueda múltiple
+      if (type === 'both' && item.media_type !== 'movie' && item.media_type !== 'tv') {
+        return false;
+      }
+      // Filtrar películas o series no estrenadas
+      return isReleased(item, today);
+    })
     .slice(0, limit)
     .map(item => ({
       ...item,

@@ -1,11 +1,10 @@
 /**
  * Diálogo modal para registrar o editar una película en "Ya vi" (calificación y etiquetas).
+ * Utiliza la API nativa de formularios (form.elements y FormData) para evitar consultas manuales.
  */
 
 let dialogElement = null;
 let formElement = null;
-let titleElement = null;
-let itemNameElement = null;
 let currentItem = null;
 let saveCallback = null;
 
@@ -16,12 +15,15 @@ let saveCallback = null;
  * @param {(item: object, rating: number, tags: string[]) => void} onSave
  */
 export function openDiaryDialog(item, existingEntry, onSave) {
-  if (!dialogElement) return;
+  if (!dialogElement || !formElement) return;
 
   currentItem = item;
   saveCallback = onSave;
 
   const title = item.title || item.name || 'Título sin nombre';
+  const titleElement = formElement.querySelector('#diary-form-title');
+  const itemNameElement = formElement.querySelector('#diary-item-name');
+
   if (titleElement) {
     titleElement.textContent = existingEntry ? 'Editar registro' : 'La vi';
   }
@@ -29,24 +31,26 @@ export function openDiaryDialog(item, existingEntry, onSave) {
     itemNameElement.textContent = title;
   }
 
-  formElement.querySelectorAll('[name="rating"]').forEach(radio => {
-    radio.checked = String(existingEntry?.rating || '') === radio.value;
-  });
+  // Asigna el radio de calificación directamente mediante el RadioNodeList nativo
+  formElement.elements.rating.value = existingEntry?.rating ? String(existingEntry.rating) : '';
 
-  formElement.querySelectorAll('[name="tag"]').forEach(box => {
-    box.checked = Boolean(existingEntry?.tags?.includes(box.value));
-  });
+  // Asigna las etiquetas marcadas
+  const selectedTags = new Set(existingEntry?.tags || []);
+  for (const checkbox of formElement.elements.tag) {
+    checkbox.checked = selectedTags.has(checkbox.value);
+  }
 
   dialogElement.showModal();
 }
 
 /**
- * Cierra el diálogo modal.
+ * Cierra el diálogo modal y limpia el estado.
  */
 export function closeDiaryDialog() {
-  if (dialogElement && dialogElement.open) {
+  if (dialogElement?.open) {
     dialogElement.close();
   }
+  formElement?.reset();
   currentItem = null;
 }
 
@@ -55,9 +59,7 @@ export function closeDiaryDialog() {
  */
 export function initDiaryDialog() {
   dialogElement = document.querySelector('#diary-dialog');
-  formElement = document.querySelector('#diary-form');
-  titleElement = document.querySelector('#diary-form-title');
-  itemNameElement = document.querySelector('#diary-item-name');
+  formElement = dialogElement?.querySelector('#diary-form');
 
   if (!dialogElement || !formElement) return;
 
@@ -65,11 +67,12 @@ export function initDiaryDialog() {
     event.preventDefault();
     if (!currentItem) return;
 
-    const ratingInput = formElement.querySelector('[name="rating"]:checked');
-    const rating = Number(ratingInput?.value);
+    // Extracción limpia usando la API nativa FormData
+    const formData = new FormData(formElement);
+    const rating = Number(formData.get('rating'));
     if (!rating) return;
 
-    const tags = [...formElement.querySelectorAll('[name="tag"]:checked')].map(box => box.value);
+    const tags = formData.getAll('tag');
 
     if (typeof saveCallback === 'function') {
       saveCallback(currentItem, rating, tags);
@@ -78,12 +81,9 @@ export function initDiaryDialog() {
     closeDiaryDialog();
   });
 
-  document.querySelectorAll('#diary-close, #diary-cancel').forEach(button => {
-    button.addEventListener('click', closeDiaryDialog);
-  });
-
+  // Delegación de eventos para cerrar: clic en fondo (backdrop) o botones cancelar / cerrar
   dialogElement.addEventListener('click', event => {
-    if (event.target === dialogElement) {
+    if (event.target === dialogElement || event.target.closest('#diary-close, #diary-cancel')) {
       closeDiaryDialog();
     }
   });
